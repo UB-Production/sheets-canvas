@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Live Google Sheets Presentation Canvas</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0f172a;
+      color: #f8fafc;
+      font-family: "Segoe UI", Arial, sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ================= SETUP PAGE ================= */
+    #setup-page {
+      position: fixed;
+      inset: 0;
+      background: #0f172a;
+      z-index: 50;
+      overflow-y: auto;
+      padding: 36px 24px 60px;
+      display: none;
+    }
+    #setup-page.visible { display: block; }
+
+    .setup-container {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .setup-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .setup-top h1 { font-size: 26px; color: #f8fafc; }
+    .setup-top p { font-size: 14px; color: #94a3b8; margin-top: 4px; }
+
+    .panel {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .panel h2 {
+      font-size: 16px;
+      color: #38bdf8;
+      margin-bottom: 14px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 2fr auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    @media (max-width: 720px) {
+      .form-grid { grid-template-columns: 1fr; }
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      color: #cbd5e1;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    input[type="text"], select {
+      width: 100%;
+      padding: 10px 12px;
+      background: #0f172a;
+      color: #f8fafc;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+    }
+    input[type="text"]:focus, select:focus { border-color: #38bdf8; }
+
+    .hint {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+
+    .sheet-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .sheet-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+
+    .sheet-row-info {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .sheet-row-title {
+      font-weight: 700;
+      font-size: 15px;
+      color: #f8fafc;
+    }
+
+    .sheet-row-url {
+      font-size: 12px;
+      color: #94a3b8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 3px;
+    }
+
+    .sheet-row-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 28px;
+      color: #64748b;
+      font-size: 14px;
+      border: 1px dashed #334155;
+      border-radius: 8px;
+    }
+
+    .settings-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    /* ================= CANVAS VIEW ================= */
+    #viewport {
+      position: relative;
+      width: 100vw;
+      height: calc(100vh - 56px);
+      overflow: hidden;
+    }
+
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: grid;
+      gap: 32px;
+      padding: 32px;
+      transform-origin: 0 0;
+      transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: transform;
+    }
+
+    .sheet-card {
+      position: relative;
+      width: 1400px;
+      height: 820px;
+      background: #1e293b;
+      border: 3px solid #334155;
+      border-radius: 14px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+      transition: border-color 0.3s;
+    }
+
+    .sheet-card.active { border-color: #38bdf8; }
+
+    .sheet-header {
+      height: 54px;
+      padding: 0 20px;
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .sheet-title { font-size: 22px; font-weight: 700; color: #f8fafc; }
+    .sheet-badge {
+      font-size: 14px;
+      background: #334155;
+      color: #cbd5e1;
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+
+    .iframe-wrap {
+      position: relative;
+      flex: 1;
+      background: #ffffff;
+    }
+
+    iframe { width: 100%; height: 100%; border: none; }
+
+    .click-overlay {
+      position: absolute;
+      inset: 0;
+      background: transparent;
+      cursor: zoom-in;
+      z-index: 5;
+    }
+    .click-overlay:hover { background: rgba(56, 189, 248, 0.08); }
+    .sheet-card.active .click-overlay { display: none; }
+
+    /* ================= TOOLBAR & BUTTONS ================= */
+    #toolbar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 56px;
+      background: #020617;
+      border-top: 1px solid #1e293b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 0 16px;
+      z-index: 20;
+    }
+
+    button {
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    button:hover { background: #334155; }
+    button.primary {
+      background: #0284c7;
+      border-color: #38bdf8;
+      color: #ffffff;
+    }
+    button.primary:hover { background: #0369a1; }
+    button.danger {
+      background: #450a0a;
+      border-color: #991b1b;
+      color: #fca5a5;
+    }
+    button.danger:hover { background: #7f1d1d; }
+    button.active {
+      background: #0284c7;
+      border-color: #38bdf8;
+      color: #ffffff;
+    }
+
+    .divider {
+      width: 1px;
+      height: 24px;
+      background: #334155;
+      margin: 0 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ================= SETUP / MANAGE PAGE ================= -->
+  <div id="setup-page">
+    <div class="setup-container">
+      <div class="setup-top">
+        <div>
+          <h1>📊 Google Sheets Canvas Setup</h1>
+          <p>Add your spreadsheet links below, then launch the zoomable presentation canvas.</p>
+        </div>
+        <button class="primary" onclick="launchCanvas()" style="padding: 12px 20px; font-size: 15px;">
+          ▶ Launch Canvas
+        </button>
+      </div>
+
+      <!-- Add Spreadsheet Box -->
+      <div class="panel">
+        <h2>➕ Add Spreadsheet</h2>
+        <div class="form-grid">
+          <div>
+            <label for="input-title">Sheet Title</label>
+            <input type="text" id="input-title" placeholder="e.g. Daily Production Output" />
+          </div>
+          <div>
+            <label for="input-url">Google Sheets Link or Embed Code</label>
+            <input type="text" id="input-url" placeholder="Paste normal link or Publish-to-web iframe..." />
+          </div>
+          <button class="primary" onclick="addSheet()" style="height: 41px;">+ Add</button>
+        </div>
+        <p class="hint">
+          💡 <strong>Tip:</strong> You can paste a normal Google Sheets URL (it will auto-format to clean <code>rm=minimal</code> mode) OR paste the full <code>&lt;iframe&gt;</code> code from <em>File → Share → Publish to web</em>.
+        </p>
+      </div>
+
+      <!-- Saved Sheets List -->
+      <div class="panel">
+        <h2>📋 Saved Spreadsheets (<span id="sheet-count">0</span>)</h2>
+        <div id="sheet-list" class="sheet-list"></div>
+      </div>
+
+      <!-- Layout & Backup Settings -->
+      <div class="panel">
+        <div class="settings-bar">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <label for="col-select" style="margin:0;">Canvas Columns:</label>
+            <select id="col-select" style="width:auto;" onchange="saveColumns()">
+              <option value="auto">Auto</option>
+              <option value="1">1 Column</option>
+              <option value="2">2 Columns</option>
+              <option value="3">3 Columns</option>
+              <option value="4">4 Columns</option>
+            </select>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button onclick="exportConfig()">⬇ Export Backup</button>
+            <button onclick="document.getElementById('import-file').click()">⬆ Import Backup</button>
+            <input type="file" id="import-file" accept=".json" style="display:none" onchange="importConfig(event)" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= CANVAS PRESENTATION VIEW ================= -->
+  <div id="viewport">
+    <div id="canvas"></div>
+  </div>
+
+  <div id="toolbar">
+    <button onclick="openSetup()">⚙️ Manage Sheets</button>
+    <div class="divider"></div>
+    <button id="btn-overview" class="active" onclick="resetZoom()">Overview [0]</button>
+    <div id="sheet-buttons" style="display:flex; gap:8px;"></div>
+    <div class="divider"></div>
+    <button onclick="reloadAll()">↻ Refresh</button>
+    <button onclick="toggleFullscreen()">⛶ Fullscreen</button>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "gsheets_canvas_items_v1";
+    const COLS_KEY = "gsheets_canvas_cols_v1";
+
+    let sheets = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    let gridCols = localStorage.getItem(COLS_KEY) || "auto";
+    let activeIndex = -1;
+
+    const setupPage = document.getElementById("setup-page");
+    const viewport = document.getElementById("viewport");
+    const canvas = document.getElementById("canvas");
+    const btnContainer = document.getElementById("sheet-buttons");
+
+    // Helper: Escape HTML for safe titles
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, m => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[m]));
+    }
+
+    // Helper: Auto-format any Google Sheets link or <iframe> tag
+    function normalizeSheetUrl(raw) {
+      let input = raw.trim();
+
+      // 1. If user pasted a full <iframe> tag, extract src URL
+      const iframeMatch = input.match(/src=["']([^"']+)["']/i);
+      if (iframeMatch) input = iframeMatch[1];
+
+      // 2. If already a Publish-to-web URL, keep as-is
+      if (input.includes("/pubhtml") || input.includes("/pub?")) {
+        return input;
+      }
+
+      // 3. If standard Google Sheets URL, convert to clean minimal embed
+      const idMatch = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      if (idMatch) {
+        const sheetId = idMatch[1];
+        const gidMatch = input.match(/[#&?]gid=([0-9]+)/);
+        const gid = gidMatch ? gidMatch[1] : "0";
+        return `https://docs.google.com/spreadsheets/d/${sheetId}/edit?gid=${gid}&rm=minimal`;
+      }
+
+      return input;
+    }
+
+    // ================= SETUP PAGE LOGIC =================
+    function openSetup() {
+      renderSetupList();
+      document.getElementById("col-select").value = gridCols;
+      setupPage.classList.add("visible");
+    }
+
+    function launchCanvas() {
+      if (sheets.length === 0) {
+        alert("Please add at least 1 Google Sheets link first.");
+        return;
+      }
+      setupPage.classList.remove("visible");
+      renderCanvas();
+      setTimeout(resetZoom, 50);
+    }
+
+    function addSheet() {
+      const titleInput = document.getElementById("input-title");
+      const urlInput = document.getElementById("input-url");
+
+      const rawUrl = urlInput.value.trim();
+      if (!rawUrl) {
+        alert("Please paste a Google Sheets link.");
+        return;
+      }
+
+      const cleanUrl = normalizeSheetUrl(rawUrl);
+      if (!cleanUrl.startsWith("http")) {
+        alert("Invalid URL. Please paste a valid Google Sheets link starting with https://");
+        return;
+      }
+
+      const title = titleInput.value.trim() || `Spreadsheet ${sheets.length + 1}`;
+      sheets.push({ title, url: cleanUrl });
+      saveData();
+
+      titleInput.value = "";
+      urlInput.value = "";
+      titleInput.focus();
+      renderSetupList();
+    }
+
+    function deleteSheet(index) {
+      sheets.splice(index, 1);
+      saveData();
+      renderSetupList();
+    }
+
+    function moveSheet(index, dir) {
+      const target = index + dir;
+      if (target < 0 || target >= sheets.length) return;
+      [sheets[index], sheets[target]] = [sheets[target], sheets[index]];
+      saveData();
+      renderSetupList();
+    }
+
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sheets));
+    }
+
+    function saveColumns() {
+      gridCols = document.getElementById("col-select").value;
+      localStorage.setItem(COLS_KEY, gridCols);
+    }
+
+    function renderSetupList() {
+      const list = document.getElementById("sheet-list");
+      document.getElementById("sheet-count").textContent = sheets.length;
+
+      if (sheets.length === 0) {
+        list.innerHTML = `<div class="empty-state">No spreadsheets added yet. Paste your first link above.</div>`;
+        return;
+      }
+
+      list.innerHTML = sheets.map((s, i) => `
+        <div class="sheet-row">
+          <div class="sheet-row-info">
+            <div class="sheet-row-title">${i + 1}. ${escapeHtml(s.title)}</div>
+            <div class="sheet-row-url">${escapeHtml(s.url)}</div>
+          </div>
+          <div class="sheet-row-actions">
+            <button onclick="moveSheet(${i}, -1)" title="Move Up">↑</button>
+            <button onclick="moveSheet(${i}, 1)" title="Move Down">↓</button>
+            <button class="danger" onclick="deleteSheet(${i})" title="Remove">✕</button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    // Export / Import JSON backup
+    function exportConfig() {
+      const data = JSON.stringify({ gridCols, sheets }, null, 2);
+      const blob = new Blob([data], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "sheets-canvas-backup.json";
+      a.click();
+    }
+
+    function importConfig(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (Array.isArray(parsed.sheets)) {
+            sheets = parsed.sheets;
+            if (parsed.gridCols) gridCols = parsed.gridCols;
+            saveData();
+            localStorage.setItem(COLS_KEY, gridCols);
+            document.getElementById("col-select").value = gridCols;
+            renderSetupList();
+            alert("Backup imported successfully!");
+          }
+        } catch {
+          alert("Invalid backup file.");
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = "";
+    }
+
+    // ================= CANVAS LOGIC =================
+    function getColumnCount() {
+      if (gridCols !== "auto") return parseInt(gridCols, 10);
+      if (sheets.length <= 1) return 1;
+      if (sheets.length <= 4) return 2;
+      if (sheets.length <= 9) return 3;
+      return 4;
+    }
+
+    function renderCanvas() {
+      const cols = getColumnCount();
+      canvas.style.gridTemplateColumns = `repeat(${cols}, 1400px)`;
+      canvas.innerHTML = "";
+      btnContainer.innerHTML = "";
+
+      sheets.forEach((sheet, i) => {
+        const card = document.createElement("div");
+        card.className = "sheet-card";
+        card.id = `card-${i}`;
+        card.innerHTML = `
+          <div class="sheet-header" onclick="toggleCard(${i})">
+            <span class="sheet-title">${escapeHtml(sheet.title)}</span>
+            <span class="sheet-badge">Key [${i + 1}]</span>
+          </div>
+          <div class="iframe-wrap">
+            <div class="click-overlay" onclick="zoomTo(${i})" title="Click to zoom in"></div>
+            <iframe src="${sheet.url}" loading="lazy"></iframe>
+          </div>
+        `;
+        canvas.appendChild(card);
+
+        const btn = document.createElement("button");
+        btn.id = `btn-${i}`;
+        btn.textContent = `${i + 1}`;
+        btn.title = sheet.title;
+        btn.onclick = () => zoomTo(i);
+        btnContainer.appendChild(btn);
+      });
+    }
+
+    function resetZoom() {
+      if (sheets.length === 0) return;
+      activeIndex = -1;
+      updateActiveUI();
+
+      const vw = viewport.clientWidth;
+      const vh = viewport.clientHeight;
+      const cw = canvas.offsetWidth;
+      const ch = canvas.offsetHeight;
+
+      const scale = Math.min((vw - 24) / cw, (vh - 24) / ch);
+      const tx = (vw - cw * scale) / 2;
+      const ty = (vh - ch * scale) / 2;
+
+      canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    }
+
+    function zoomTo(index) {
+      if (index < 0 || index >= sheets.length) return;
+      activeIndex = index;
+      updateActiveUI();
+
+      const card = document.getElementById(`card-${index}`);
+      const vw = viewport.clientWidth;
+      const vh = viewport.clientHeight;
+
+      const scale = Math.min((vw - 20) / card.offsetWidth, (vh - 20) / card.offsetHeight);
+      const cx = card.offsetLeft + card.offsetWidth / 2;
+      const cy = card.offsetTop + card.offsetHeight / 2;
+
+      const tx = vw / 2 - cx * scale;
+      const ty = vh / 2 - cy * scale;
+
+      canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    }
+
+    function toggleCard(index) {
+      if (activeIndex === index) resetZoom();
+      else zoomTo(index);
+    }
+
+    function updateActiveUI() {
+      document.getElementById("btn-overview").classList.toggle("active", activeIndex === -1);
+      sheets.forEach((_, i) => {
+        const card = document.getElementById(`card-${i}`);
+        const btn = document.getElementById(`btn-${i}`);
+        if (card) card.classList.toggle("active", activeIndex === i);
+        if (btn) btn.classList.toggle("active", activeIndex === i);
+      });
+    }
+
+    function reloadAll() {
+      document.querySelectorAll("iframe").forEach(frame => { frame.src = frame.src; });
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+
+    // Keyboard shortcuts (only active when not on setup page)
+    document.addEventListener("keydown", (e) => {
+      if (setupPage.classList.contains("visible")) {
+        if (e.key === "Enter" && document.activeElement.id === "input-url") addSheet();
+        return;
+      }
+      if (e.key === "Escape" || e.key === "0") resetZoom();
+      const num = parseInt(e.key, 10);
+      if (num >= 1 && num <= sheets.length) zoomTo(num - 1);
+    });
+
+    window.addEventListener("resize", () => {
+      if (setupPage.classList.contains("visible")) return;
+      if (activeIndex === -1) resetZoom();
+      else zoomTo(activeIndex);
+    });
+
+    // Startup: open Setup page if empty, otherwise launch Canvas directly
+    window.addEventListener("load", () => {
+      if (sheets.length === 0) {
+        openSetup();
+      } else {
+        renderCanvas();
+        resetZoom();
+      }
+    });
+  </script>
+</body>
+</html>
