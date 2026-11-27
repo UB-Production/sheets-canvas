@@ -2,16 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Live Google Sheets Presentation Canvas</title>
   <style>
+    :root {
+      --card-w: 1400px;
+      --card-h: 788px;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: #0f172a;
       color: #f8fafc;
       font-family: "Segoe UI", Arial, sans-serif;
       overflow: hidden;
-      height: 100vh;
       width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      touch-action: none;
     }
 
     /* ================= SETUP PAGE ================= */
@@ -19,52 +27,90 @@
       position: fixed;
       inset: 0;
       background: #0f172a;
-      z-index: 50;
+      z-index: 60;
       overflow-y: auto;
-      padding: 36px 24px 60px;
+      padding: 28px 20px 60px;
       display: none;
+      touch-action: auto;
     }
     #setup-page.visible { display: block; }
 
-    .setup-container {
-      max-width: 860px;
-      margin: 0 auto;
-    }
+    .setup-container { max-width: 880px; margin: 0 auto; }
 
     .setup-top {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
       flex-wrap: wrap;
       gap: 12px;
     }
-
-    .setup-top h1 { font-size: 26px; color: #f8fafc; }
+    .setup-top h1 { font-size: 24px; color: #f8fafc; }
     .setup-top p { font-size: 14px; color: #94a3b8; margin-top: 4px; }
+
+    /* Group Tabs in Setup */
+    .group-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    @media (max-width: 540px) {
+      .group-tabs { grid-template-columns: 1fr; }
+    }
+    .group-tab {
+      background: #1e293b;
+      border: 2px solid #334155;
+      border-radius: 12px;
+      padding: 14px 16px;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .group-tab:hover { background: #263449; }
+    .group-tab.active {
+      background: #0c4a6e;
+      border-color: #38bdf8;
+    }
+    .group-tab-name {
+      font-size: 17px;
+      font-weight: 700;
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .group-tab-count {
+      font-size: 12px;
+      background: rgba(15, 23, 42, 0.65);
+      color: #bae6fd;
+      padding: 3px 9px;
+      border-radius: 999px;
+    }
+    .group-tab-sub {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+    .group-tab.active .group-tab-sub { color: #e0f2fe; }
 
     .panel {
       background: #1e293b;
       border: 1px solid #334155;
       border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 20px;
+      padding: 18px;
+      margin-bottom: 18px;
     }
-
-    .panel h2 {
-      font-size: 16px;
-      color: #38bdf8;
-      margin-bottom: 14px;
-    }
+    .panel h2 { font-size: 16px; color: #38bdf8; margin-bottom: 14px; }
 
     .form-grid {
       display: grid;
-      grid-template-columns: 1fr 2fr auto;
-      gap: 12px;
+      grid-template-columns: 160px 1fr 2fr auto;
+      gap: 10px;
       align-items: end;
     }
-
-    @media (max-width: 720px) {
+    @media (max-width: 780px) {
       .form-grid { grid-template-columns: 1fr; }
     }
 
@@ -88,18 +134,8 @@
     }
     input[type="text"]:focus, select:focus { border-color: #38bdf8; }
 
-    .hint {
-      font-size: 12px;
-      color: #94a3b8;
-      margin-top: 10px;
-      line-height: 1.5;
-    }
-
-    .sheet-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
+    .hint { font-size: 12px; color: #94a3b8; margin-top: 10px; line-height: 1.5; }
+    .sheet-list { display: flex; flex-direction: column; gap: 10px; }
 
     .sheet-row {
       display: flex;
@@ -110,19 +146,10 @@
       border: 1px solid #334155;
       border-radius: 8px;
       padding: 12px 14px;
+      flex-wrap: wrap;
     }
-
-    .sheet-row-info {
-      min-width: 0;
-      flex: 1;
-    }
-
-    .sheet-row-title {
-      font-weight: 700;
-      font-size: 15px;
-      color: #f8fafc;
-    }
-
+    .sheet-row-info { min-width: 0; flex: 1; }
+    .sheet-row-title { font-weight: 700; font-size: 15px; color: #f8fafc; }
     .sheet-row-url {
       font-size: 12px;
       color: #94a3b8;
@@ -131,12 +158,7 @@
       text-overflow: ellipsis;
       margin-top: 3px;
     }
-
-    .sheet-row-actions {
-      display: flex;
-      gap: 6px;
-      flex-shrink: 0;
-    }
+    .sheet-row-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
 
     .empty-state {
       text-align: center;
@@ -155,11 +177,13 @@
       gap: 12px;
     }
 
-    /* ================= CANVAS VIEW ================= */
+    /* ================= FULL-SCREEN CANVAS VIEW ================= */
     #viewport {
-      position: relative;
+      position: fixed;
+      inset: 0;
       width: 100vw;
-      height: calc(100vh - 56px);
+      height: 100vh;
+      height: 100dvh;
       overflow: hidden;
     }
 
@@ -168,28 +192,33 @@
       top: 0;
       left: 0;
       display: grid;
-      gap: 32px;
-      padding: 32px;
+      gap: 40px;
+      padding: 40px;
       transform-origin: 0 0;
-      transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
       will-change: transform;
     }
 
+    #canvas.dragging { transition: none; }
+
     .sheet-card {
       position: relative;
-      width: 1400px;
-      height: 820px;
+      width: var(--card-w);
+      height: var(--card-h);
       background: #1e293b;
-      border: 3px solid #334155;
+      border: 4px solid #334155;
       border-radius: 14px;
       overflow: hidden;
       display: flex;
       flex-direction: column;
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
-      transition: border-color 0.3s;
+      transition: border-color 0.3s, border-width 0.3s, border-radius 0.3s;
     }
 
-    .sheet-card.active { border-color: #38bdf8; }
+    body.is-zoomed .sheet-card.active {
+      border-width: 0;
+      border-radius: 0;
+    }
 
     .sheet-header {
       height: 54px;
@@ -201,6 +230,14 @@
       justify-content: space-between;
       cursor: pointer;
       user-select: none;
+      overflow: hidden;
+      transition: height 0.3s, opacity 0.3s;
+    }
+
+    body.is-zoomed .sheet-card.active .sheet-header {
+      height: 0;
+      border-bottom: none;
+      opacity: 0;
     }
 
     .sheet-title { font-size: 22px; font-weight: 700; color: #f8fafc; }
@@ -212,13 +249,8 @@
       border-radius: 6px;
     }
 
-    .iframe-wrap {
-      position: relative;
-      flex: 1;
-      background: #ffffff;
-    }
-
-    iframe { width: 100%; height: 100%; border: none; }
+    .iframe-wrap { position: relative; flex: 1; background: #ffffff; }
+    iframe { width: 100%; height: 100%; border: none; display: block; }
 
     .click-overlay {
       position: absolute;
@@ -230,59 +262,193 @@
     .click-overlay:hover { background: rgba(56, 189, 248, 0.08); }
     .sheet-card.active .click-overlay { display: none; }
 
-    /* ================= TOOLBAR & BUTTONS ================= */
+    /* Drag-to-Pan Shield */
+    #pan-shield {
+      position: fixed;
+      inset: 0;
+      z-index: 15;
+      display: none;
+      cursor: grab;
+      background: transparent;
+    }
+    body.pan-mode #pan-shield { display: block; }
+    body.pan-mode #pan-shield:active { cursor: grabbing; }
+
+    /* ================= FLOATING TOP-RIGHT SLIDE CONTROLS ================= */
+    #zoom-controls {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(6px);
+      border: 1px solid #334155;
+      padding: 6px 8px;
+      border-radius: 10px;
+      z-index: 30;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-10px);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+
+    body.is-zoomed #zoom-controls {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    #zoom-slide-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #38bdf8;
+      padding: 0 6px;
+      max-width: 190px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ================= FLOATING BOTTOM-RIGHT ZOOM & SCROLL PAD ================= */
+    #nav-pad {
+      position: fixed;
+      bottom: 68px;
+      right: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(6px);
+      border: 1px solid #334155;
+      padding: 8px;
+      border-radius: 12px;
+      z-index: 30;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+      transition: bottom 0.35s ease;
+    }
+
+    body.is-zoomed #nav-pad { bottom: 14px; }
+
+    #nav-pad.collapsed #nav-pad-body { display: none; }
+
+    #nav-pad-body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-pad-head {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .zoom-row { display: flex; align-items: center; gap: 4px; }
+    #zoom-percent {
+      min-width: 46px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: #cbd5e1;
+      cursor: pointer;
+    }
+
+    .dpad {
+      display: grid;
+      grid-template-columns: repeat(3, 34px);
+      grid-template-rows: repeat(3, 32px);
+      gap: 4px;
+    }
+    .dpad button {
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    /* ================= BOTTOM TOOLBAR (OVERVIEW ONLY) ================= */
     #toolbar {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
       height: 56px;
-      background: #020617;
+      background: rgba(2, 6, 23, 0.94);
       border-top: 1px solid #1e293b;
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 0 16px;
+      justify-content: safe center;
+      gap: 8px;
+      padding: 0 12px;
       z-index: 20;
+      overflow-x: auto;
+      transition: transform 0.35s ease;
     }
 
+    body.is-zoomed #toolbar { transform: translateY(100%); }
+
+    .group-switcher {
+      display: flex;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 2px;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+    .group-switcher button {
+      border: none;
+      background: transparent;
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+    .group-switcher button.active {
+      background: #0284c7;
+      color: #ffffff;
+    }
+
+    /* ================= BUTTONS ================= */
     button {
       background: #1e293b;
       color: #e2e8f0;
       border: 1px solid #334155;
-      padding: 8px 14px;
+      padding: 7px 11px;
       border-radius: 8px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
+      white-space: nowrap;
       transition: background 0.2s, border-color 0.2s;
     }
     button:hover { background: #334155; }
-    button.primary {
+    button.primary, button.active {
       background: #0284c7;
       border-color: #38bdf8;
       color: #ffffff;
     }
     button.primary:hover { background: #0369a1; }
+    button.warn-active {
+      background: #d97706;
+      border-color: #fbbf24;
+      color: #ffffff;
+    }
     button.danger {
       background: #450a0a;
       border-color: #991b1b;
       color: #fca5a5;
     }
     button.danger:hover { background: #7f1d1d; }
-    button.active {
-      background: #0284c7;
-      border-color: #38bdf8;
-      color: #ffffff;
-    }
 
-    .divider {
-      width: 1px;
-      height: 24px;
-      background: #334155;
-      margin: 0 4px;
-    }
+    .divider { width: 1px; height: 22px; background: #334155; margin: 0 4px; flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -292,21 +458,46 @@
     <div class="setup-container">
       <div class="setup-top">
         <div>
-          <h1>📊 Google Sheets Canvas Setup</h1>
-          <p>Add your spreadsheet links below, then launch the zoomable presentation canvas.</p>
+          <h1>📊 Manage Spreadsheets</h1>
+          <p>Select a group below to manage its spreadsheets and view it on the canvas.</p>
         </div>
-        <button class="primary" onclick="launchCanvas()" style="padding: 12px 20px; font-size: 15px;">
+        <button id="btn-launch" class="primary" onclick="launchCanvas()" style="padding: 12px 20px; font-size: 15px;">
           ▶ Launch Canvas
         </button>
       </div>
 
-      <!-- Add Spreadsheet Box -->
+      <!-- Group Selection Cards -->
+      <div class="group-tabs">
+        <div id="tab-coil" class="group-tab" onclick="selectGroup('Coil Springs', false)">
+          <div class="group-tab-name">
+            <span>🌀 Coil Springs</span>
+            <span id="count-coil" class="group-tab-count">0 sheets</span>
+          </div>
+          <div class="group-tab-sub">Click to view &amp; edit Coil Springs canvas</div>
+        </div>
+        <div id="tab-ubolt" class="group-tab" onclick="selectGroup('U Bolt', false)">
+          <div class="group-tab-name">
+            <span>🔩 U Bolt</span>
+            <span id="count-ubolt" class="group-tab-count">0 sheets</span>
+          </div>
+          <div class="group-tab-sub">Click to view &amp; edit U Bolt canvas</div>
+        </div>
+      </div>
+
+      <!-- Add Spreadsheet Panel -->
       <div class="panel">
         <h2>➕ Add Spreadsheet</h2>
         <div class="form-grid">
           <div>
+            <label for="input-group">Group</label>
+            <select id="input-group">
+              <option value="Coil Springs">Coil Springs</option>
+              <option value="U Bolt">U Bolt</option>
+            </select>
+          </div>
+          <div>
             <label for="input-title">Sheet Title</label>
-            <input type="text" id="input-title" placeholder="e.g. Daily Production Output" />
+            <input type="text" id="input-title" placeholder="e.g. Daily Output" />
           </div>
           <div>
             <label for="input-url">Google Sheets Link or Embed Code</label>
@@ -315,13 +506,13 @@
           <button class="primary" onclick="addSheet()" style="height: 41px;">+ Add</button>
         </div>
         <p class="hint">
-          💡 <strong>Tip:</strong> You can paste a normal Google Sheets URL (it will auto-format to clean <code>rm=minimal</code> mode) OR paste the full <code>&lt;iframe&gt;</code> code from <em>File → Share → Publish to web</em>.
+          💡 Paste any normal Google Sheets URL (auto-formats to clean <code>rm=minimal</code> mode) or paste the full <code>&lt;iframe&gt;</code> code from <em>File → Share → Publish to web</em>.
         </p>
       </div>
 
-      <!-- Saved Sheets List -->
+      <!-- Saved Sheets List for Selected Group -->
       <div class="panel">
-        <h2>📋 Saved Spreadsheets (<span id="sheet-count">0</span>)</h2>
+        <h2>📋 <span id="list-group-title">Coil Springs</span> Spreadsheets (<span id="sheet-count">0</span>)</h2>
         <div id="sheet-list" class="sheet-list"></div>
       </div>
 
@@ -351,52 +542,126 @@
   <!-- ================= CANVAS PRESENTATION VIEW ================= -->
   <div id="viewport">
     <div id="canvas"></div>
+    <div id="pan-shield"></div>
   </div>
 
+  <!-- Floating Top-Right Slide Controls (Zoomed Mode) -->
+  <div id="zoom-controls">
+    <span id="zoom-slide-label">Slide</span>
+    <button onclick="prevSheet()" title="Previous Slide">◀</button>
+    <button onclick="nextSheet()" title="Next Slide">▶</button>
+    <button class="primary" onclick="resetZoom()" title="Back to Overview (Esc / 0)">← Overview</button>
+    <button onclick="toggleFullscreen()" title="Browser Fullscreen">⛶</button>
+  </div>
+
+  <!-- Floating Bottom-Right Zoom & Scroll/Pan Pad -->
+  <div id="nav-pad">
+    <div class="nav-pad-head">
+      <button id="btn-nav-toggle" onclick="toggleNavPad()" style="padding:4px 8px; font-size:12px;" title="Show/Hide Zoom &amp; Scroll Pad">
+        🎮 Hide
+      </button>
+    </div>
+    <div id="nav-pad-body">
+      <div class="zoom-row">
+        <button onclick="adjustZoom(-0.25)" title="Zoom Out">−</button>
+        <span id="zoom-percent" onclick="resetPanZoom()" title="Click to reset to 100%">100%</span>
+        <button onclick="adjustZoom(0.25)" title="Zoom In">+</button>
+      </div>
+      <div class="dpad">
+        <div></div>
+        <button onclick="panView(0, 1)" title="Scroll Up">↑</button>
+        <div></div>
+        <button onclick="panView(1, 0)" title="Scroll Left">←</button>
+        <button onclick="resetPanZoom()" title="Center &amp; Reset Zoom">●</button>
+        <button onclick="panView(-1, 0)" title="Scroll Right">→</button>
+        <div></div>
+        <button onclick="panView(0, -1)" title="Scroll Down">↓</button>
+        <div></div>
+      </div>
+      <button id="btn-pan-mode" onclick="togglePanMode()" style="width:100%; font-size:12px;">
+        ✋ Drag Pan: OFF
+      </button>
+    </div>
+  </div>
+
+  <!-- Bottom Toolbar (Overview Mode) -->
   <div id="toolbar">
-    <button onclick="openSetup()">⚙️ Manage Sheets</button>
+    <button onclick="openSetup()">⚙️ Manage</button>
+    <div class="divider"></div>
+    <div class="group-switcher">
+      <button id="tb-coil" onclick="selectGroup('Coil Springs', true)">Coil Springs</button>
+      <button id="tb-ubolt" onclick="selectGroup('U Bolt', true)">U Bolt</button>
+    </div>
     <div class="divider"></div>
     <button id="btn-overview" class="active" onclick="resetZoom()">Overview [0]</button>
-    <div id="sheet-buttons" style="display:flex; gap:8px;"></div>
+    <div id="sheet-buttons" style="display:flex; gap:6px;"></div>
     <div class="divider"></div>
     <button onclick="reloadAll()">↻ Refresh</button>
     <button onclick="toggleFullscreen()">⛶ Fullscreen</button>
   </div>
 
   <script>
+    const GROUPS = ["Coil Springs", "U Bolt"];
     const STORAGE_KEY = "gsheets_canvas_items_v1";
     const COLS_KEY = "gsheets_canvas_cols_v1";
+    const GROUP_KEY = "gsheets_canvas_active_group_v1";
+    const TOOLBAR_H = 56;
 
-    let sheets = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    // Safe localStorage load
+    function loadSavedSheets() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+        if (!Array.isArray(raw)) return [];
+        return raw.map(s => ({
+          title: String(s.title || "Untitled"),
+          url: String(s.url || ""),
+          group: GROUPS.includes(s.group) ? s.group : "Coil Springs"
+        }));
+      } catch {
+        return [];
+      }
+    }
+
+    let sheets = loadSavedSheets();
     let gridCols = localStorage.getItem(COLS_KEY) || "auto";
-    let activeIndex = -1;
+    let activeGroup = localStorage.getItem(GROUP_KEY) || "Coil Springs";
+    if (!GROUPS.includes(activeGroup)) activeGroup = "Coil Springs";
+
+    let activeIndex = -1; // -1 = Overview
+    let zoomMult = 1;
+    let panX = 0;
+    let panY = 0;
+    let panMode = false;
 
     const setupPage = document.getElementById("setup-page");
-    const viewport = document.getElementById("viewport");
     const canvas = document.getElementById("canvas");
+    const panShield = document.getElementById("pan-shield");
     const btnContainer = document.getElementById("sheet-buttons");
+    const zoomLabel = document.getElementById("zoom-slide-label");
+    const zoomPercent = document.getElementById("zoom-percent");
+    const btnPanMode = document.getElementById("btn-pan-mode");
+    const navPad = document.getElementById("nav-pad");
+    const btnNavToggle = document.getElementById("btn-nav-toggle");
 
-    // Helper: Escape HTML for safe titles
     function escapeHtml(str) {
-      return str.replace(/[&<>"']/g, m => ({
+      return String(str).replace(/[&<>"']/g, m => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
       }[m]));
     }
 
-    // Helper: Auto-format any Google Sheets link or <iframe> tag
     function normalizeSheetUrl(raw) {
       let input = raw.trim();
 
-      // 1. If user pasted a full <iframe> tag, extract src URL
+      // Extract src if user pasted full <iframe> code
       const iframeMatch = input.match(/src=["']([^"']+)["']/i);
       if (iframeMatch) input = iframeMatch[1];
 
-      // 2. If already a Publish-to-web URL, keep as-is
-      if (input.includes("/pubhtml") || input.includes("/pub?")) {
+      // Keep Publish-to-web URLs as-is
+      if (input.includes("/d/e/") || input.includes("/pubhtml") || input.includes("/pub")) {
         return input;
       }
 
-      // 3. If standard Google Sheets URL, convert to clean minimal embed
+      // Convert standard Google Sheets URL to clean minimal embed
       const idMatch = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
       if (idMatch) {
         const sheetId = idMatch[1];
@@ -408,67 +673,138 @@
       return input;
     }
 
-    // ================= SETUP PAGE LOGIC =================
+    function getActiveSheets() {
+      return sheets.filter(s => s.group === activeGroup);
+    }
+
+    function syncCardSize() {
+      const vw = Math.max(320, window.innerWidth);
+      const vh = Math.max(320, window.innerHeight);
+      const cardW = 1400;
+      const cardH = Math.max(550, Math.min(2600, Math.round(cardW * (vh / vw))));
+      document.documentElement.style.setProperty("--card-w", `${cardW}px`);
+      document.documentElement.style.setProperty("--card-h", `${cardH}px`);
+    }
+
+    // ================= GROUP SELECTION & SETUP PAGE =================
+    function selectGroup(groupName, fromToolbar) {
+      activeGroup = groupName;
+      localStorage.setItem(GROUP_KEY, activeGroup);
+      updateGroupUI();
+
+      if (fromToolbar) {
+        if (getActiveSheets().length === 0) {
+          openSetup();
+          return;
+        }
+        renderCanvas();
+        requestAnimationFrame(resetZoom);
+      } else {
+        document.getElementById("input-group").value = activeGroup;
+        renderSetupList();
+      }
+    }
+
+    function updateGroupUI() {
+      const coilCount = sheets.filter(s => s.group === "Coil Springs").length;
+      const uboltCount = sheets.filter(s => s.group === "U Bolt").length;
+
+      document.getElementById("count-coil").textContent = `${coilCount} ${coilCount === 1 ? "sheet" : "sheets"}`;
+      document.getElementById("count-ubolt").textContent = `${uboltCount} ${uboltCount === 1 ? "sheet" : "sheets"}`;
+
+      document.getElementById("tab-coil").classList.toggle("active", activeGroup === "Coil Springs");
+      document.getElementById("tab-ubolt").classList.toggle("active", activeGroup === "U Bolt");
+      document.getElementById("tb-coil").classList.toggle("active", activeGroup === "Coil Springs");
+      document.getElementById("tb-ubolt").classList.toggle("active", activeGroup === "U Bolt");
+
+      document.getElementById("list-group-title").textContent = activeGroup;
+      document.getElementById("btn-launch").textContent = `▶ Launch ${activeGroup} Canvas`;
+    }
+
     function openSetup() {
-      renderSetupList();
+      setPanMode(false);
+      document.body.classList.remove("is-zoomed");
+      document.getElementById("input-group").value = activeGroup;
       document.getElementById("col-select").value = gridCols;
+      updateGroupUI();
+      renderSetupList();
       setupPage.classList.add("visible");
     }
 
     function launchCanvas() {
-      if (sheets.length === 0) {
-        alert("Please add at least 1 Google Sheets link first.");
+      if (getActiveSheets().length === 0) {
+        alert(`No spreadsheets in "${activeGroup}" yet. Add at least 1 link first.`);
         return;
       }
       setupPage.classList.remove("visible");
+      syncCardSize();
+      updateGroupUI();
       renderCanvas();
-      setTimeout(resetZoom, 50);
+      requestAnimationFrame(resetZoom);
     }
 
     function addSheet() {
+      const groupInput = document.getElementById("input-group");
       const titleInput = document.getElementById("input-title");
       const urlInput = document.getElementById("input-url");
 
       const rawUrl = urlInput.value.trim();
-      if (!rawUrl) {
-        alert("Please paste a Google Sheets link.");
-        return;
-      }
+      if (!rawUrl) return alert("Please paste a Google Sheets link.");
 
       const cleanUrl = normalizeSheetUrl(rawUrl);
-      if (!cleanUrl.startsWith("http")) {
-        alert("Invalid URL. Please paste a valid Google Sheets link starting with https://");
-        return;
+      if (!/^https?:\/\//i.test(cleanUrl)) {
+        return alert("Invalid URL. Please paste a valid Google Sheets link starting with https://");
       }
 
-      const title = titleInput.value.trim() || `Spreadsheet ${sheets.length + 1}`;
-      sheets.push({ title, url: cleanUrl });
+      const group = groupInput.value;
+      const groupCount = sheets.filter(s => s.group === group).length;
+      const title = titleInput.value.trim() || `${group} Sheet ${groupCount + 1}`;
+
+      sheets.push({ title, url: cleanUrl, group });
       saveData();
+
+      activeGroup = group;
+      localStorage.setItem(GROUP_KEY, activeGroup);
 
       titleInput.value = "";
       urlInput.value = "";
       titleInput.focus();
+      updateGroupUI();
       renderSetupList();
     }
 
-    function deleteSheet(index) {
-      sheets.splice(index, 1);
+    function deleteSheet(globalIndex) {
+      sheets.splice(globalIndex, 1);
+      saveData();
+      updateGroupUI();
+      renderSetupList();
+    }
+
+    function swapSheetGroup(globalIndex) {
+      const current = sheets[globalIndex].group;
+      sheets[globalIndex].group = current === "Coil Springs" ? "U Bolt" : "Coil Springs";
+      saveData();
+      updateGroupUI();
+      renderSetupList();
+    }
+
+    function moveSheetInGroup(globalIndex, dir) {
+      const groupIndices = sheets
+        .map((s, idx) => (s.group === activeGroup ? idx : -1))
+        .filter(idx => idx !== -1);
+
+      const pos = groupIndices.indexOf(globalIndex);
+      const targetPos = pos + dir;
+      if (targetPos < 0 || targetPos >= groupIndices.length) return;
+
+      const idxA = groupIndices[pos];
+      const idxB = groupIndices[targetPos];
+      [sheets[idxA], sheets[idxB]] = [sheets[idxB], sheets[idxA]];
       saveData();
       renderSetupList();
     }
 
-    function moveSheet(index, dir) {
-      const target = index + dir;
-      if (target < 0 || target >= sheets.length) return;
-      [sheets[index], sheets[target]] = [sheets[target], sheets[index]];
-      saveData();
-      renderSetupList();
-    }
-
-    function saveData() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(sheets));
-    }
-
+    function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(sheets)); }
     function saveColumns() {
       gridCols = document.getElementById("col-select").value;
       localStorage.setItem(COLS_KEY, gridCols);
@@ -476,36 +812,44 @@
 
     function renderSetupList() {
       const list = document.getElementById("sheet-list");
-      document.getElementById("sheet-count").textContent = sheets.length;
+      const itemsWithIndex = sheets
+        .map((s, idx) => ({ ...s, globalIndex: idx }))
+        .filter(s => s.group === activeGroup);
 
-      if (sheets.length === 0) {
-        list.innerHTML = `<div class="empty-state">No spreadsheets added yet. Paste your first link above.</div>`;
+      document.getElementById("sheet-count").textContent = itemsWithIndex.length;
+
+      if (itemsWithIndex.length === 0) {
+        list.innerHTML = `<div class="empty-state">No spreadsheets in <strong>${escapeHtml(activeGroup)}</strong> yet. Add your first link above.</div>`;
         return;
       }
 
-      list.innerHTML = sheets.map((s, i) => `
+      const otherGroup = activeGroup === "Coil Springs" ? "U Bolt" : "Coil Springs";
+
+      list.innerHTML = itemsWithIndex.map((s, i) => `
         <div class="sheet-row">
           <div class="sheet-row-info">
             <div class="sheet-row-title">${i + 1}. ${escapeHtml(s.title)}</div>
             <div class="sheet-row-url">${escapeHtml(s.url)}</div>
           </div>
           <div class="sheet-row-actions">
-            <button onclick="moveSheet(${i}, -1)" title="Move Up">↑</button>
-            <button onclick="moveSheet(${i}, 1)" title="Move Down">↓</button>
-            <button class="danger" onclick="deleteSheet(${i})" title="Remove">✕</button>
+            <button onclick="swapSheetGroup(${s.globalIndex})" title="Move to ${otherGroup}">⇄ ${otherGroup}</button>
+            <button onclick="moveSheetInGroup(${s.globalIndex}, -1)" title="Move Up">↑</button>
+            <button onclick="moveSheetInGroup(${s.globalIndex}, 1)" title="Move Down">↓</button>
+            <button class="danger" onclick="deleteSheet(${s.globalIndex})" title="Remove">✕</button>
           </div>
         </div>
       `).join("");
     }
 
-    // Export / Import JSON backup
     function exportConfig() {
-      const data = JSON.stringify({ gridCols, sheets }, null, 2);
+      const data = JSON.stringify({ gridCols, activeGroup, sheets }, null, 2);
       const blob = new Blob([data], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
+      a.href = url;
       a.download = "sheets-canvas-backup.json";
       a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
     function importConfig(event) {
@@ -516,13 +860,22 @@
         try {
           const parsed = JSON.parse(e.target.result);
           if (Array.isArray(parsed.sheets)) {
-            sheets = parsed.sheets;
+            sheets = parsed.sheets.map(s => ({
+              title: String(s.title || "Untitled"),
+              url: String(s.url || ""),
+              group: GROUPS.includes(s.group) ? s.group : "Coil Springs"
+            }));
             if (parsed.gridCols) gridCols = parsed.gridCols;
+            if (GROUPS.includes(parsed.activeGroup)) activeGroup = parsed.activeGroup;
             saveData();
             localStorage.setItem(COLS_KEY, gridCols);
+            localStorage.setItem(GROUP_KEY, activeGroup);
             document.getElementById("col-select").value = gridCols;
+            updateGroupUI();
             renderSetupList();
             alert("Backup imported successfully!");
+          } else {
+            alert("Invalid backup format.");
           }
         } catch {
           alert("Invalid backup file.");
@@ -532,33 +885,34 @@
       event.target.value = "";
     }
 
-    // ================= CANVAS LOGIC =================
-    function getColumnCount() {
+    // ================= CANVAS RENDER & TRANSFORM ENGINE =================
+    function getColumnCount(count) {
       if (gridCols !== "auto") return parseInt(gridCols, 10);
-      if (sheets.length <= 1) return 1;
-      if (sheets.length <= 4) return 2;
-      if (sheets.length <= 9) return 3;
+      if (count <= 1) return 1;
+      if (count <= 4) return 2;
+      if (count <= 9) return 3;
       return 4;
     }
 
     function renderCanvas() {
-      const cols = getColumnCount();
-      canvas.style.gridTemplateColumns = `repeat(${cols}, 1400px)`;
+      const visible = getActiveSheets();
+      const cols = getColumnCount(visible.length);
+      canvas.style.gridTemplateColumns = `repeat(${cols}, var(--card-w))`;
       canvas.innerHTML = "";
       btnContainer.innerHTML = "";
 
-      sheets.forEach((sheet, i) => {
+      visible.forEach((sheet, i) => {
         const card = document.createElement("div");
         card.className = "sheet-card";
         card.id = `card-${i}`;
         card.innerHTML = `
-          <div class="sheet-header" onclick="toggleCard(${i})">
+          <div class="sheet-header" onclick="zoomTo(${i})">
             <span class="sheet-title">${escapeHtml(sheet.title)}</span>
-            <span class="sheet-badge">Key [${i + 1}]</span>
+            <span class="sheet-badge">${escapeHtml(activeGroup)} · [${i + 1}]</span>
           </div>
           <div class="iframe-wrap">
-            <div class="click-overlay" onclick="zoomTo(${i})" title="Click to zoom in"></div>
-            <iframe src="${sheet.url}" loading="lazy"></iframe>
+            <div class="click-overlay" onclick="zoomTo(${i})" title="Click to zoom full screen"></div>
+            <iframe src="${escapeHtml(sheet.url)}"></iframe>
           </div>
         `;
         canvas.appendChild(card);
@@ -572,50 +926,138 @@
       });
     }
 
+    function applyTransform() {
+      const visible = getActiveSheets();
+      if (visible.length === 0) return;
+
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      zoomPercent.textContent = `${Math.round(zoomMult * 100)}%`;
+
+      if (activeIndex === -1) {
+        const usableH = Math.max(100, vh - TOOLBAR_H);
+        const cw = canvas.offsetWidth || 1;
+        const ch = canvas.offsetHeight || 1;
+        const baseScale = Math.min((vw - 24) / cw, (usableH - 24) / ch);
+        const scale = baseScale * zoomMult;
+        const tx = (vw - cw * scale) / 2 + panX;
+        const ty = (usableH - ch * scale) / 2 + panY;
+        canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+      } else {
+        const card = document.getElementById(`card-${activeIndex}`);
+        if (!card) return;
+        const baseScale = Math.min(vw / card.offsetWidth, vh / card.offsetHeight);
+        const scale = baseScale * zoomMult;
+        const cx = card.offsetLeft + card.offsetWidth / 2;
+        const cy = card.offsetTop + card.offsetHeight / 2;
+        const tx = vw / 2 - cx * scale + panX;
+        const ty = vh / 2 - cy * scale + panY;
+        canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+      }
+    }
+
     function resetZoom() {
-      if (sheets.length === 0) return;
+      if (getActiveSheets().length === 0) return;
       activeIndex = -1;
+      zoomMult = 1;
+      panX = 0;
+      panY = 0;
+      setPanMode(false);
+      document.body.classList.remove("is-zoomed");
       updateActiveUI();
-
-      const vw = viewport.clientWidth;
-      const vh = viewport.clientHeight;
-      const cw = canvas.offsetWidth;
-      const ch = canvas.offsetHeight;
-
-      const scale = Math.min((vw - 24) / cw, (vh - 24) / ch);
-      const tx = (vw - cw * scale) / 2;
-      const ty = (vh - ch * scale) / 2;
-
-      canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+      applyTransform();
     }
 
     function zoomTo(index) {
-      if (index < 0 || index >= sheets.length) return;
+      const visible = getActiveSheets();
+      if (index < 0 || index >= visible.length) return;
       activeIndex = index;
+      zoomMult = 1;
+      panX = 0;
+      panY = 0;
+      setPanMode(false);
+      document.body.classList.add("is-zoomed");
+      zoomLabel.textContent = `${activeGroup} · ${index + 1}/${visible.length} · ${visible[index].title}`;
       updateActiveUI();
-
-      const card = document.getElementById(`card-${index}`);
-      const vw = viewport.clientWidth;
-      const vh = viewport.clientHeight;
-
-      const scale = Math.min((vw - 20) / card.offsetWidth, (vh - 20) / card.offsetHeight);
-      const cx = card.offsetLeft + card.offsetWidth / 2;
-      const cy = card.offsetTop + card.offsetHeight / 2;
-
-      const tx = vw / 2 - cx * scale;
-      const ty = vh / 2 - cy * scale;
-
-      canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+      applyTransform();
     }
 
-    function toggleCard(index) {
-      if (activeIndex === index) resetZoom();
-      else zoomTo(index);
+    function adjustZoom(delta) {
+      zoomMult = Math.max(0.5, Math.min(3.0, Math.round((zoomMult + delta) * 100) / 100));
+      applyTransform();
+    }
+
+    function panView(dirX, dirY) {
+      const step = Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.25);
+      panX += dirX * step;
+      panY += dirY * step;
+      applyTransform();
+    }
+
+    function resetPanZoom() {
+      zoomMult = 1;
+      panX = 0;
+      panY = 0;
+      applyTransform();
+    }
+
+    function toggleNavPad() {
+      const collapsed = navPad.classList.toggle("collapsed");
+      btnNavToggle.textContent = collapsed ? "🎮 Pad" : "🎮 Hide";
+    }
+
+    function setPanMode(enabled) {
+      panMode = enabled;
+      document.body.classList.toggle("pan-mode", panMode);
+      btnPanMode.classList.toggle("warn-active", panMode);
+      btnPanMode.textContent = panMode ? "✋ Drag Pan: ON" : "✋ Drag Pan: OFF";
+    }
+
+    function togglePanMode() { setPanMode(!panMode); }
+
+    // Safe Mouse + Android Touch Drag Handler
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+
+    function endDrag() {
+      isDragging = false;
+      canvas.classList.remove("dragging");
+    }
+
+    panShield.addEventListener("pointerdown", (e) => {
+      isDragging = true;
+      startX = e.clientX - panX;
+      startY = e.clientY - panY;
+      canvas.classList.add("dragging");
+      panShield.setPointerCapture(e.pointerId);
+    });
+
+    panShield.addEventListener("pointermove", (e) => {
+      if (!isDragging) return;
+      panX = e.clientX - startX;
+      panY = e.clientY - startY;
+      applyTransform();
+    });
+
+    panShield.addEventListener("pointerup", endDrag);
+    panShield.addEventListener("pointercancel", endDrag);
+    panShield.addEventListener("lostpointercapture", endDrag);
+
+    function nextSheet() {
+      const visible = getActiveSheets();
+      if (visible.length) zoomTo((activeIndex + 1) % visible.length);
+    }
+
+    function prevSheet() {
+      const visible = getActiveSheets();
+      if (visible.length) zoomTo((activeIndex - 1 + visible.length) % visible.length);
     }
 
     function updateActiveUI() {
+      const visible = getActiveSheets();
       document.getElementById("btn-overview").classList.toggle("active", activeIndex === -1);
-      sheets.forEach((_, i) => {
+      visible.forEach((_, i) => {
         const card = document.getElementById(`card-${i}`);
         const btn = document.getElementById(`btn-${i}`);
         if (card) card.classList.toggle("active", activeIndex === i);
@@ -628,34 +1070,45 @@
     }
 
     function toggleFullscreen() {
-      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-      else document.exitFullscreen();
+      if (!document.fullscreenElement) {
+        if (document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        }
+      } else if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
     }
 
-    // Keyboard shortcuts (only active when not on setup page)
     document.addEventListener("keydown", (e) => {
       if (setupPage.classList.contains("visible")) {
         if (e.key === "Enter" && document.activeElement.id === "input-url") addSheet();
         return;
       }
+      const visible = getActiveSheets();
       if (e.key === "Escape" || e.key === "0") resetZoom();
+      if (e.key === "+" || e.key === "=") adjustZoom(0.25);
+      if (e.key === "-") adjustZoom(-0.25);
+      if (e.key === "ArrowRight" && activeIndex !== -1) nextSheet();
+      if (e.key === "ArrowLeft" && activeIndex !== -1) prevSheet();
       const num = parseInt(e.key, 10);
-      if (num >= 1 && num <= sheets.length) zoomTo(num - 1);
+      if (num >= 1 && num <= visible.length) zoomTo(num - 1);
     });
 
     window.addEventListener("resize", () => {
-      if (setupPage.classList.contains("visible")) return;
-      if (activeIndex === -1) resetZoom();
-      else zoomTo(activeIndex);
+      syncCardSize();
+      if (!setupPage.classList.contains("visible")) {
+        requestAnimationFrame(applyTransform);
+      }
     });
 
-    // Startup: open Setup page if empty, otherwise launch Canvas directly
     window.addEventListener("load", () => {
-      if (sheets.length === 0) {
+      syncCardSize();
+      updateGroupUI();
+      if (getActiveSheets().length === 0) {
         openSetup();
       } else {
         renderCanvas();
-        resetZoom();
+        requestAnimationFrame(resetZoom);
       }
     });
   </script>
