@@ -88,11 +88,7 @@
       padding: 3px 9px;
       border-radius: 999px;
     }
-    .group-tab-sub {
-      font-size: 12px;
-      color: #94a3b8;
-      margin-top: 4px;
-    }
+    .group-tab-sub { font-size: 12px; color: #94a3b8; margin-top: 4px; }
     .group-tab.active .group-tab-sub { color: #e0f2fe; }
 
     .panel {
@@ -195,11 +191,9 @@
       gap: 40px;
       padding: 40px;
       transform-origin: 0 0;
-      transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
       will-change: transform;
     }
-
-    #canvas.dragging { transition: none; }
 
     .sheet-card {
       position: relative;
@@ -212,9 +206,9 @@
       display: flex;
       flex-direction: column;
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
-      transition: border-color 0.3s, border-width 0.3s, border-radius 0.3s;
     }
 
+    /* Instant edge-to-edge layout so wrap.clientHeight is exact on frame 1 */
     body.is-zoomed .sheet-card.active {
       border-width: 0;
       border-radius: 0;
@@ -231,13 +225,10 @@
       cursor: pointer;
       user-select: none;
       overflow: hidden;
-      transition: height 0.3s, opacity 0.3s;
     }
 
     body.is-zoomed .sheet-card.active .sheet-header {
-      height: 0;
-      border-bottom: none;
-      opacity: 0;
+      display: none;
     }
 
     .sheet-title { font-size: 22px; font-weight: 700; color: #f8fafc; }
@@ -249,8 +240,24 @@
       border-radius: 6px;
     }
 
-    .iframe-wrap { position: relative; flex: 1; background: #ffffff; }
-    iframe { width: 100%; height: 100%; border: none; display: block; }
+    /* Clipped container so zooming affects ONLY this specific sheet */
+    .iframe-wrap {
+      position: relative;
+      flex: 1;
+      background: #ffffff;
+      overflow: hidden;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+      transform-origin: 0 0;
+      transition: transform 0.2s ease-out;
+    }
+
+    iframe.dragging { transition: none; }
 
     .click-overlay {
       position: absolute;
@@ -262,7 +269,7 @@
     .click-overlay:hover { background: rgba(56, 189, 248, 0.08); }
     .sheet-card.active .click-overlay { display: none; }
 
-    /* Drag-to-Pan Shield */
+    /* Drag-to-Pan Shield (only active inside a zoomed sheet when Drag Pan is ON) */
     #pan-shield {
       position: fixed;
       inset: 0;
@@ -271,8 +278,8 @@
       cursor: grab;
       background: transparent;
     }
-    body.pan-mode #pan-shield { display: block; }
-    body.pan-mode #pan-shield:active { cursor: grabbing; }
+    body.is-zoomed.pan-mode #pan-shield { display: block; }
+    body.is-zoomed.pan-mode #pan-shield:active { cursor: grabbing; }
 
     /* ================= FLOATING TOP-RIGHT SLIDE CONTROLS ================= */
     #zoom-controls {
@@ -313,10 +320,10 @@
       text-overflow: ellipsis;
     }
 
-    /* ================= FLOATING BOTTOM-RIGHT ZOOM & SCROLL PAD ================= */
+    /* ================= FLOATING BOTTOM-RIGHT SHEET ZOOM PAD (ACTIVE SHEET ONLY) ================= */
     #nav-pad {
       position: fixed;
-      bottom: 68px;
+      bottom: 14px;
       right: 12px;
       display: flex;
       flex-direction: column;
@@ -329,10 +336,17 @@
       border-radius: 12px;
       z-index: 30;
       box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
-      transition: bottom 0.35s ease;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(14px);
+      transition: opacity 0.3s, transform 0.3s;
     }
 
-    body.is-zoomed #nav-pad { bottom: 14px; }
+    body.is-zoomed #nav-pad {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
 
     #nav-pad.collapsed #nav-pad-body { display: none; }
 
@@ -430,6 +444,7 @@
       transition: background 0.2s, border-color 0.2s;
     }
     button:hover { background: #334155; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
     button.primary, button.active {
       background: #0284c7;
       border-color: #38bdf8;
@@ -466,7 +481,6 @@
         </button>
       </div>
 
-      <!-- Group Selection Cards -->
       <div class="group-tabs">
         <div id="tab-coil" class="group-tab" onclick="selectGroup('Coil Springs', false)">
           <div class="group-tab-name">
@@ -484,7 +498,6 @@
         </div>
       </div>
 
-      <!-- Add Spreadsheet Panel -->
       <div class="panel">
         <h2>➕ Add Spreadsheet</h2>
         <div class="form-grid">
@@ -510,13 +523,11 @@
         </p>
       </div>
 
-      <!-- Saved Sheets List for Selected Group -->
       <div class="panel">
         <h2>📋 <span id="list-group-title">Coil Springs</span> Spreadsheets (<span id="sheet-count">0</span>)</h2>
         <div id="sheet-list" class="sheet-list"></div>
       </div>
 
-      <!-- Layout & Backup Settings -->
       <div class="panel">
         <div class="settings-bar">
           <div style="display:flex; align-items:center; gap:10px;">
@@ -545,7 +556,7 @@
     <div id="pan-shield"></div>
   </div>
 
-  <!-- Floating Top-Right Slide Controls (Zoomed Mode) -->
+  <!-- Floating Top-Right Slide Controls (Active Sheet Only) -->
   <div id="zoom-controls">
     <span id="zoom-slide-label">Slide</span>
     <button onclick="prevSheet()" title="Previous Slide">◀</button>
@@ -554,28 +565,28 @@
     <button onclick="toggleFullscreen()" title="Browser Fullscreen">⛶</button>
   </div>
 
-  <!-- Floating Bottom-Right Zoom & Scroll/Pan Pad -->
+  <!-- Floating Bottom-Right Per-Sheet Zoom & Pan Pad (Active Sheet Only) -->
   <div id="nav-pad">
     <div class="nav-pad-head">
-      <button id="btn-nav-toggle" onclick="toggleNavPad()" style="padding:4px 8px; font-size:12px;" title="Show/Hide Zoom &amp; Scroll Pad">
-        🎮 Hide
+      <button id="btn-nav-toggle" onclick="toggleNavPad()" style="padding:4px 8px; font-size:12px;" title="Show/Hide Sheet Zoom Pad">
+        🔍 Hide
       </button>
     </div>
     <div id="nav-pad-body">
       <div class="zoom-row">
-        <button onclick="adjustZoom(-0.25)" title="Zoom Out">−</button>
-        <span id="zoom-percent" onclick="resetPanZoom()" title="Click to reset to 100%">100%</span>
-        <button onclick="adjustZoom(0.25)" title="Zoom In">+</button>
+        <button onclick="adjustSheetZoom(-0.25)" title="Zoom Out This Sheet">−</button>
+        <span id="zoom-percent" onclick="resetSheetZoom()" title="Reset This Sheet to 100%">100%</span>
+        <button onclick="adjustSheetZoom(0.25)" title="Zoom In This Sheet">+</button>
       </div>
       <div class="dpad">
         <div></div>
-        <button onclick="panView(0, 1)" title="Scroll Up">↑</button>
+        <button class="pan-btn" onclick="panSheet(0, 1)" title="Pan Up">↑</button>
         <div></div>
-        <button onclick="panView(1, 0)" title="Scroll Left">←</button>
-        <button onclick="resetPanZoom()" title="Center &amp; Reset Zoom">●</button>
-        <button onclick="panView(-1, 0)" title="Scroll Right">→</button>
+        <button class="pan-btn" onclick="panSheet(1, 0)" title="Pan Left">←</button>
+        <button onclick="resetSheetZoom()" title="Reset Sheet Zoom to 100%">●</button>
+        <button class="pan-btn" onclick="panSheet(-1, 0)" title="Pan Right">→</button>
         <div></div>
-        <button onclick="panView(0, -1)" title="Scroll Down">↓</button>
+        <button class="pan-btn" onclick="panSheet(0, -1)" title="Pan Down">↓</button>
         <div></div>
       </div>
       <button id="btn-pan-mode" onclick="togglePanMode()" style="width:100%; font-size:12px;">
@@ -584,7 +595,7 @@
     </div>
   </div>
 
-  <!-- Bottom Toolbar (Overview Mode) -->
+  <!-- Bottom Toolbar (Overview Mode Only) -->
   <div id="toolbar">
     <button onclick="openSetup()">⚙️ Manage</button>
     <div class="divider"></div>
@@ -607,30 +618,57 @@
     const GROUP_KEY = "gsheets_canvas_active_group_v1";
     const TOOLBAR_H = 56;
 
-    // Safe localStorage load
+    // Safe storage helpers (prevents crashes in restricted WebViews/Incognito)
+    function safeGet(key, fallback) {
+      try {
+        const val = localStorage.getItem(key);
+        return val !== null ? val : fallback;
+      } catch {
+        return fallback;
+      }
+    }
+
+    function safeSet(key, value) {
+      try {
+        localStorage.setItem(key, value);
+      } catch {
+        // Storage unavailable or full; keep running in memory
+      }
+    }
+
+    function isValidHttpUrl(url) {
+      return typeof url === "string" && /^https?:\/\//i.test(url.trim());
+    }
+
+    function sanitizeSheetItem(s) {
+      if (!s || !isValidHttpUrl(s.url)) return null;
+      return {
+        title: String(s.title || "Untitled").trim() || "Untitled",
+        url: String(s.url).trim(),
+        group: GROUPS.includes(s.group) ? s.group : "Coil Springs",
+        zoom: typeof s.zoom === "number" && s.zoom >= 0.5 && s.zoom <= 3 ? s.zoom : 1,
+        panX: 0,
+        panY: 0
+      };
+    }
+
     function loadSavedSheets() {
       try {
-        const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+        const raw = JSON.parse(safeGet(STORAGE_KEY, "[]"));
         if (!Array.isArray(raw)) return [];
-        return raw.map(s => ({
-          title: String(s.title || "Untitled"),
-          url: String(s.url || ""),
-          group: GROUPS.includes(s.group) ? s.group : "Coil Springs"
-        }));
+        return raw.map(sanitizeSheetItem).filter(Boolean);
       } catch {
         return [];
       }
     }
 
     let sheets = loadSavedSheets();
-    let gridCols = localStorage.getItem(COLS_KEY) || "auto";
-    let activeGroup = localStorage.getItem(GROUP_KEY) || "Coil Springs";
+    let gridCols = safeGet(COLS_KEY, "auto");
+    let activeGroup = safeGet(GROUP_KEY, "Coil Springs");
     if (!GROUPS.includes(activeGroup)) activeGroup = "Coil Springs";
 
     let activeIndex = -1; // -1 = Overview
-    let zoomMult = 1;
-    let panX = 0;
-    let panY = 0;
+    let currentCanvasScale = 1;
     let panMode = false;
 
     const setupPage = document.getElementById("setup-page");
@@ -651,17 +689,11 @@
 
     function normalizeSheetUrl(raw) {
       let input = raw.trim();
-
-      // Extract src if user pasted full <iframe> code
       const iframeMatch = input.match(/src=["']([^"']+)["']/i);
-      if (iframeMatch) input = iframeMatch[1];
-
-      // Keep Publish-to-web URLs as-is
+      if (iframeMatch) input = iframeMatch[1].trim();
       if (input.includes("/d/e/") || input.includes("/pubhtml") || input.includes("/pub")) {
         return input;
       }
-
-      // Convert standard Google Sheets URL to clean minimal embed
       const idMatch = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
       if (idMatch) {
         const sheetId = idMatch[1];
@@ -669,7 +701,6 @@
         const gid = gidMatch ? gidMatch[1] : "0";
         return `https://docs.google.com/spreadsheets/d/${sheetId}/edit?gid=${gid}&rm=minimal`;
       }
-
       return input;
     }
 
@@ -689,7 +720,7 @@
     // ================= GROUP SELECTION & SETUP PAGE =================
     function selectGroup(groupName, fromToolbar) {
       activeGroup = groupName;
-      localStorage.setItem(GROUP_KEY, activeGroup);
+      safeSet(GROUP_KEY, activeGroup);
       updateGroupUI();
 
       if (fromToolbar) {
@@ -722,6 +753,7 @@
     }
 
     function openSetup() {
+      activeIndex = -1;
       setPanMode(false);
       document.body.classList.remove("is-zoomed");
       document.getElementById("input-group").value = activeGroup;
@@ -752,7 +784,7 @@
       if (!rawUrl) return alert("Please paste a Google Sheets link.");
 
       const cleanUrl = normalizeSheetUrl(rawUrl);
-      if (!/^https?:\/\//i.test(cleanUrl)) {
+      if (!isValidHttpUrl(cleanUrl)) {
         return alert("Invalid URL. Please paste a valid Google Sheets link starting with https://");
       }
 
@@ -760,11 +792,11 @@
       const groupCount = sheets.filter(s => s.group === group).length;
       const title = titleInput.value.trim() || `${group} Sheet ${groupCount + 1}`;
 
-      sheets.push({ title, url: cleanUrl, group });
+      sheets.push({ title, url: cleanUrl, group, zoom: 1, panX: 0, panY: 0 });
       saveData();
 
       activeGroup = group;
-      localStorage.setItem(GROUP_KEY, activeGroup);
+      safeSet(GROUP_KEY, activeGroup);
 
       titleInput.value = "";
       urlInput.value = "";
@@ -774,6 +806,9 @@
     }
 
     function deleteSheet(globalIndex) {
+      const target = sheets[globalIndex];
+      if (!target) return;
+      if (!confirm(`Remove "${target.title}" from ${target.group}?`)) return;
       sheets.splice(globalIndex, 1);
       saveData();
       updateGroupUI();
@@ -781,8 +816,9 @@
     }
 
     function swapSheetGroup(globalIndex) {
-      const current = sheets[globalIndex].group;
-      sheets[globalIndex].group = current === "Coil Springs" ? "U Bolt" : "Coil Springs";
+      const target = sheets[globalIndex];
+      if (!target) return;
+      target.group = target.group === "Coil Springs" ? "U Bolt" : "Coil Springs";
       saveData();
       updateGroupUI();
       renderSetupList();
@@ -804,10 +840,14 @@
       renderSetupList();
     }
 
-    function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(sheets)); }
+    function saveData() {
+      const toStore = sheets.map(({ title, url, group, zoom }) => ({ title, url, group, zoom }));
+      safeSet(STORAGE_KEY, JSON.stringify(toStore));
+    }
+
     function saveColumns() {
       gridCols = document.getElementById("col-select").value;
-      localStorage.setItem(COLS_KEY, gridCols);
+      safeSet(COLS_KEY, gridCols);
     }
 
     function renderSetupList() {
@@ -842,7 +882,8 @@
     }
 
     function exportConfig() {
-      const data = JSON.stringify({ gridCols, activeGroup, sheets }, null, 2);
+      const toStore = sheets.map(({ title, url, group, zoom }) => ({ title, url, group, zoom }));
+      const data = JSON.stringify({ gridCols, activeGroup, sheets: toStore }, null, 2);
       const blob = new Blob([data], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -860,20 +901,22 @@
         try {
           const parsed = JSON.parse(e.target.result);
           if (Array.isArray(parsed.sheets)) {
-            sheets = parsed.sheets.map(s => ({
-              title: String(s.title || "Untitled"),
-              url: String(s.url || ""),
-              group: GROUPS.includes(s.group) ? s.group : "Coil Springs"
-            }));
-            if (parsed.gridCols) gridCols = parsed.gridCols;
+            const validSheets = parsed.sheets.map(sanitizeSheetItem).filter(Boolean);
+            const skipped = parsed.sheets.length - validSheets.length;
+            sheets = validSheets;
+            if (["auto", "1", "2", "3", "4"].includes(String(parsed.gridCols))) {
+              gridCols = String(parsed.gridCols);
+            }
             if (GROUPS.includes(parsed.activeGroup)) activeGroup = parsed.activeGroup;
             saveData();
-            localStorage.setItem(COLS_KEY, gridCols);
-            localStorage.setItem(GROUP_KEY, activeGroup);
+            safeSet(COLS_KEY, gridCols);
+            safeSet(GROUP_KEY, activeGroup);
             document.getElementById("col-select").value = gridCols;
             updateGroupUI();
             renderSetupList();
-            alert("Backup imported successfully!");
+            alert(skipped > 0
+              ? `Imported ${validSheets.length} sheets (${skipped} invalid URLs skipped).`
+              : `Backup imported successfully (${validSheets.length} sheets)!`);
           } else {
             alert("Invalid backup format.");
           }
@@ -885,7 +928,7 @@
       event.target.value = "";
     }
 
-    // ================= CANVAS RENDER & TRANSFORM ENGINE =================
+    // ================= CANVAS & PER-SHEET ZOOM ENGINE =================
     function getColumnCount(count) {
       if (gridCols !== "auto") return parseInt(gridCols, 10);
       if (count <= 1) return 1;
@@ -902,6 +945,7 @@
       btnContainer.innerHTML = "";
 
       visible.forEach((sheet, i) => {
+        const safeUrl = escapeHtml(sheet.url);
         const card = document.createElement("div");
         card.className = "sheet-card";
         card.id = `card-${i}`;
@@ -910,9 +954,9 @@
             <span class="sheet-title">${escapeHtml(sheet.title)}</span>
             <span class="sheet-badge">${escapeHtml(activeGroup)} · [${i + 1}]</span>
           </div>
-          <div class="iframe-wrap">
-            <div class="click-overlay" onclick="zoomTo(${i})" title="Click to zoom full screen"></div>
-            <iframe src="${escapeHtml(sheet.url)}"></iframe>
+          <div class="iframe-wrap" id="wrap-${i}">
+            <div class="click-overlay" onclick="zoomTo(${i})" title="Click to open full screen"></div>
+            <iframe id="frame-${i}" data-url="${safeUrl}" src="${safeUrl}"></iframe>
           </div>
         `;
         canvas.appendChild(card);
@@ -923,87 +967,133 @@
         btn.title = sheet.title;
         btn.onclick = () => zoomTo(i);
         btnContainer.appendChild(btn);
+
+        applySheetZoom(i, false);
       });
     }
 
-    function applyTransform() {
+    function applyCanvasPosition() {
       const visible = getActiveSheets();
       if (visible.length === 0) return;
 
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      zoomPercent.textContent = `${Math.round(zoomMult * 100)}%`;
 
       if (activeIndex === -1) {
         const usableH = Math.max(100, vh - TOOLBAR_H);
         const cw = canvas.offsetWidth || 1;
         const ch = canvas.offsetHeight || 1;
-        const baseScale = Math.min((vw - 24) / cw, (usableH - 24) / ch);
-        const scale = baseScale * zoomMult;
-        const tx = (vw - cw * scale) / 2 + panX;
-        const ty = (usableH - ch * scale) / 2 + panY;
-        canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+        currentCanvasScale = Math.min((vw - 24) / cw, (usableH - 24) / ch);
+        const tx = (vw - cw * currentCanvasScale) / 2;
+        const ty = (usableH - ch * currentCanvasScale) / 2;
+        canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${currentCanvasScale})`;
       } else {
         const card = document.getElementById(`card-${activeIndex}`);
         if (!card) return;
-        const baseScale = Math.min(vw / card.offsetWidth, vh / card.offsetHeight);
-        const scale = baseScale * zoomMult;
-        const cx = card.offsetLeft + card.offsetWidth / 2;
-        const cy = card.offsetTop + card.offsetHeight / 2;
-        const tx = vw / 2 - cx * scale + panX;
-        const ty = vh / 2 - cy * scale + panY;
-        canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+        currentCanvasScale = Math.min(vw / card.offsetWidth, vh / card.offsetHeight);
+        const tx = (vw - card.offsetWidth * currentCanvasScale) / 2 - card.offsetLeft * currentCanvasScale;
+        const ty = (vh - card.offsetHeight * currentCanvasScale) / 2 - card.offsetTop * currentCanvasScale;
+        canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${currentCanvasScale})`;
+      }
+    }
+
+    function applySheetZoom(index, isActiveView) {
+      const visible = getActiveSheets();
+      const sheet = visible[index];
+      const frame = document.getElementById(`frame-${index}`);
+      const wrap = document.getElementById(`wrap-${index}`);
+      if (!sheet || !frame || !wrap) return;
+
+      const z = sheet.zoom || 1;
+
+      if (z <= 1) {
+        sheet.panX = 0;
+        sheet.panY = 0;
+        frame.style.width = `${100 / z}%`;
+        frame.style.height = `${100 / z}%`;
+        frame.style.transform = `scale(${z})`;
+      } else if (isActiveView) {
+        frame.style.width = "100%";
+        frame.style.height = "100%";
+        const minPanX = -(wrap.clientWidth * (z - 1));
+        const minPanY = -(wrap.clientHeight * (z - 1));
+        sheet.panX = Math.max(minPanX, Math.min(0, sheet.panX || 0));
+        sheet.panY = Math.max(minPanY, Math.min(0, sheet.panY || 0));
+        frame.style.transform = `translate(${sheet.panX}px, ${sheet.panY}px) scale(${z})`;
+      } else {
+        frame.style.width = "100%";
+        frame.style.height = "100%";
+        frame.style.transform = "scale(1)";
+      }
+
+      if (isActiveView && index === activeIndex) {
+        zoomPercent.textContent = `${Math.round(z * 100)}%`;
+        const canPan = z > 1;
+        document.querySelectorAll(".pan-btn").forEach(btn => { btn.disabled = !canPan; });
+        btnPanMode.disabled = !canPan;
+        if (!canPan && panMode) setPanMode(false);
       }
     }
 
     function resetZoom() {
       if (getActiveSheets().length === 0) return;
+      const prev = activeIndex;
       activeIndex = -1;
-      zoomMult = 1;
-      panX = 0;
-      panY = 0;
       setPanMode(false);
       document.body.classList.remove("is-zoomed");
+      if (prev >= 0) applySheetZoom(prev, false);
       updateActiveUI();
-      applyTransform();
+      applyCanvasPosition();
     }
 
     function zoomTo(index) {
       const visible = getActiveSheets();
       if (index < 0 || index >= visible.length) return;
+      const prev = activeIndex;
       activeIndex = index;
-      zoomMult = 1;
-      panX = 0;
-      panY = 0;
       setPanMode(false);
       document.body.classList.add("is-zoomed");
       zoomLabel.textContent = `${activeGroup} · ${index + 1}/${visible.length} · ${visible[index].title}`;
       updateActiveUI();
-      applyTransform();
+      applyCanvasPosition();
+      if (prev >= 0 && prev !== index) applySheetZoom(prev, false);
+      requestAnimationFrame(() => applySheetZoom(index, true));
     }
 
-    function adjustZoom(delta) {
-      zoomMult = Math.max(0.5, Math.min(3.0, Math.round((zoomMult + delta) * 100) / 100));
-      applyTransform();
+    function adjustSheetZoom(delta) {
+      if (activeIndex === -1) return;
+      const sheet = getActiveSheets()[activeIndex];
+      if (!sheet) return;
+      sheet.zoom = Math.max(0.5, Math.min(3.0, Math.round((sheet.zoom + delta) * 100) / 100));
+      saveData();
+      applySheetZoom(activeIndex, true);
     }
 
-    function panView(dirX, dirY) {
-      const step = Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.25);
-      panX += dirX * step;
-      panY += dirY * step;
-      applyTransform();
+    function panSheet(dirX, dirY) {
+      if (activeIndex === -1) return;
+      const sheet = getActiveSheets()[activeIndex];
+      const wrap = document.getElementById(`wrap-${activeIndex}`);
+      if (!sheet || !wrap || sheet.zoom <= 1) return;
+
+      sheet.panX = (sheet.panX || 0) + dirX * Math.round(wrap.clientWidth * 0.25);
+      sheet.panY = (sheet.panY || 0) + dirY * Math.round(wrap.clientHeight * 0.25);
+      applySheetZoom(activeIndex, true);
     }
 
-    function resetPanZoom() {
-      zoomMult = 1;
-      panX = 0;
-      panY = 0;
-      applyTransform();
+    function resetSheetZoom() {
+      if (activeIndex === -1) return;
+      const sheet = getActiveSheets()[activeIndex];
+      if (!sheet) return;
+      sheet.zoom = 1;
+      sheet.panX = 0;
+      sheet.panY = 0;
+      saveData();
+      applySheetZoom(activeIndex, true);
     }
 
     function toggleNavPad() {
       const collapsed = navPad.classList.toggle("collapsed");
-      btnNavToggle.textContent = collapsed ? "🎮 Pad" : "🎮 Hide";
+      btnNavToggle.textContent = collapsed ? "🔍 Zoom" : "🔍 Hide";
     }
 
     function setPanMode(enabled) {
@@ -1013,31 +1103,50 @@
       btnPanMode.textContent = panMode ? "✋ Drag Pan: ON" : "✋ Drag Pan: OFF";
     }
 
-    function togglePanMode() { setPanMode(!panMode); }
+    function togglePanMode() {
+      if (activeIndex === -1) return;
+      const sheet = getActiveSheets()[activeIndex];
+      if (!sheet || sheet.zoom <= 1) return;
+      setPanMode(!panMode);
+    }
 
-    // Safe Mouse + Android Touch Drag Handler
+    // Drag-to-pan ONLY inside the active zoomed-in sheet
     let isDragging = false;
-    let startX = 0;
-    let startY = 0;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let initialPanX = 0;
+    let initialPanY = 0;
 
     function endDrag() {
       isDragging = false;
-      canvas.classList.remove("dragging");
+      const frame = document.getElementById(`frame-${activeIndex}`);
+      if (frame) frame.classList.remove("dragging");
     }
 
     panShield.addEventListener("pointerdown", (e) => {
+      if (activeIndex === -1) return;
+      const sheet = getActiveSheets()[activeIndex];
+      const frame = document.getElementById(`frame-${activeIndex}`);
+      if (!sheet || !frame || sheet.zoom <= 1) return;
+
       isDragging = true;
-      startX = e.clientX - panX;
-      startY = e.clientY - panY;
-      canvas.classList.add("dragging");
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      initialPanX = sheet.panX || 0;
+      initialPanY = sheet.panY || 0;
+      frame.classList.add("dragging");
       panShield.setPointerCapture(e.pointerId);
     });
 
     panShield.addEventListener("pointermove", (e) => {
-      if (!isDragging) return;
-      panX = e.clientX - startX;
-      panY = e.clientY - startY;
-      applyTransform();
+      if (!isDragging || activeIndex === -1) return;
+      const sheet = getActiveSheets()[activeIndex];
+      if (!sheet) return;
+
+      const scale = currentCanvasScale || 1;
+      sheet.panX = initialPanX + (e.clientX - dragStartX) / scale;
+      sheet.panY = initialPanY + (e.clientY - dragStartY) / scale;
+      applySheetZoom(activeIndex, true);
     });
 
     panShield.addEventListener("pointerup", endDrag);
@@ -1065,8 +1174,13 @@
       });
     }
 
+    // Reliable reload even for Publish-to-web URLs containing #gid=
     function reloadAll() {
-      document.querySelectorAll("iframe").forEach(frame => { frame.src = frame.src; });
+      document.querySelectorAll("iframe").forEach(frame => {
+        const targetUrl = frame.dataset.url || frame.src;
+        frame.src = "about:blank";
+        setTimeout(() => { frame.src = targetUrl; }, 60);
+      });
     }
 
     function toggleFullscreen() {
@@ -1080,16 +1194,23 @@
     }
 
     document.addEventListener("keydown", (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
       if (setupPage.classList.contains("visible")) {
-        if (e.key === "Enter" && document.activeElement.id === "input-url") addSheet();
+        if (e.key === "Enter" && (document.activeElement.id === "input-url" || document.activeElement.id === "input-title")) {
+          addSheet();
+        }
         return;
       }
+
       const visible = getActiveSheets();
       if (e.key === "Escape" || e.key === "0") resetZoom();
-      if (e.key === "+" || e.key === "=") adjustZoom(0.25);
-      if (e.key === "-") adjustZoom(-0.25);
-      if (e.key === "ArrowRight" && activeIndex !== -1) nextSheet();
-      if (e.key === "ArrowLeft" && activeIndex !== -1) prevSheet();
+      if (activeIndex !== -1) {
+        if (e.key === "+" || e.key === "=") adjustSheetZoom(0.25);
+        if (e.key === "-") adjustSheetZoom(-0.25);
+        if (e.key === "ArrowRight") nextSheet();
+        if (e.key === "ArrowLeft") prevSheet();
+      }
       const num = parseInt(e.key, 10);
       if (num >= 1 && num <= visible.length) zoomTo(num - 1);
     });
@@ -1097,7 +1218,10 @@
     window.addEventListener("resize", () => {
       syncCardSize();
       if (!setupPage.classList.contains("visible")) {
-        requestAnimationFrame(applyTransform);
+        requestAnimationFrame(() => {
+          applyCanvasPosition();
+          if (activeIndex !== -1) applySheetZoom(activeIndex, true);
+        });
       }
     });
 
